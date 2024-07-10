@@ -1,3 +1,5 @@
+import os
+import numpy as np
 import pandas as pd
 from PIL import Image
 import torch
@@ -9,8 +11,8 @@ import torch.optim as optim
 from torchvision.models import resnet50
 
 class TrainDataset(Dataset):
-    def __init__(self, csv_file):
-        self.data = pd.read_csv(csv_file)
+    def __init__(self, data):
+        self.data = data
         self.transform = transforms.Compose([
             transforms.Resize((256, 256)),
             transforms.RandomHorizontalFlip(p=0.5),
@@ -30,8 +32,8 @@ class TrainDataset(Dataset):
         return image, label
 
 class TestDataset(Dataset):
-    def __init__(self, csv_file):
-        self.data = pd.read_csv(csv_file)
+    def __init__(self, data):
+        self.data = data
         self.transform = transforms.Compose([
             transforms.Resize((256, 256)),
             transforms.ToTensor(),
@@ -51,12 +53,13 @@ def get_data_loaders(train_csv, test_csv, batch_size=32):
     train_data = pd.read_csv(train_csv)
 
     # Split train dataset into train and validation sets
-    train_data, val_data = train_test_split(train_data, test_size=0.2, random_state=42)
+    train_data, val_data = train_test_split(train_data, test_size=0.1, random_state=42)
 
     # Create dataset objects
     train_dataset = TrainDataset(train_data)
     val_dataset = TrainDataset(val_data)
-    test_dataset = TestDataset(test_csv)
+    test_data = pd.read_csv(test_csv)
+    test_dataset = TestDataset(test_data)
 
     # Create data loaders
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
@@ -140,22 +143,27 @@ def infer_and_save_results(model, test_loader, output_csv):
             images = images.to(device)
             outputs = model(images)
             predicted = torch.sigmoid(outputs).round().cpu().numpy().astype(int)
-            results.extend(predicted)
-
+            results.extend(predicted.flatten())
+    print("this is the results array", results)
     # Load test data to save results
-    test_data = pd.read_csv(test_loader.dataset.data)
+    test_data = test_loader.dataset.data
     test_data['label'] = results
+
+    out_dir = os.path.dirname(output_csv)
+    os.makedirs(out_dir, exist_ok=True)
     test_data.to_csv(output_csv, index=False)
     print(f'Results saved to {output_csv}')
 
 def main():
-    train_csv = 'train_data.csv'
-    test_csv = 'test_data.csv'
-    output_csv = 'test_data_with_predictions.csv'
+    in_csv = os.path.join(os.path.dirname(__file__), '..', 'input_data', 'test', 'test.csv')
+    out_csv = os.path.join(os.path.dirname(__file__), '..', 'output_data', 'submission.csv')
+    train_csv = os.path.join(os.path.dirname(__file__), '..', 'input_data', 'train', 'train.csv')
 
-    train_loader, val_loader, test_loader = get_data_loaders(train_csv, test_csv, batch_size=32)
-    model = train_model(train_loader, val_loader, num_epochs=10)
-    infer_and_save_results(model, test_loader, output_csv)
+    train_loader, val_loader, test_loader = get_data_loaders(train_csv, in_csv, batch_size=32)
+    model = train_model(train_loader, val_loader, num_epochs=30)
+    infer_and_save_results(model, test_loader, out_csv)
+
+    pass
 
 
 # Example usage
