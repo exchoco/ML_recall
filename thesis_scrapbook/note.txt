@@ -1,0 +1,56 @@
+attemp 1: no loss scaling
+- negative kld too large and cant converge causing the other loss also not doing so good
+
+attemp 2: scale rec loss and triplet 5000 times 
+- all losses decrease but the reconstruction still doesnt show any texture
+-* discarding kld for negative reconstruction is a good choice
+
+attemp 3: change loss to sum instead of mean
+- now all loss does go down but so does the negative to noisy reconsturction loss, but still it doesnt mean its not working (middle point maybe)
+- looks like the detail still doesnt show (brain tissue), but its better than the previous since we now have light shadow showing
+- the negative sample does get restored somehow to better shape and shadowing as the original
+- as the kld for negative starts increasing at the end, can try step 70 with the lowest overall loss
+
+attemp4: want to give some details for the tissue, trying the skip and tv loss
+- the texture is now worse than the previous one
+- try to change back the activation function to Sigmoid
+
+attemp5: since #4 is not working, try to change the activation back from tanh to sigmoid
+- because of the TV loss, it starts to show some structures instead of shadow only
+- this might also affected by the skip connection
+
+attemp6: since #5 is worse than 3 (w/o skip and TV loss), now try to remove the skip and use TV loss only
+- this is not working, model fails to reconstruc and put 2 large patches in the middle and outside of the brain region
+
+attemp7: now remove the tv and bring back the skip connection
+- the reconstructed images have some kind of white dot in the middle of the reconstructed slice
+
+attemp8: based on attemp 5, 6, 7 the skip has to be paired with the TV loss, now lets try the SSIM loss with the skip HAHAHA
+- the performance only sligtly worse than the normal one (by 0.007 for both dice and AUROC)
+
+attemp9: since we already try 2 new losses, I think we should try removing the maximize negative reconstruction error and uses the SSIM
+- the reconstructed images have all the middle region become white and dashed
+
+attemp10: since we already try 2 new losses, I think we should try removing the maximize negative reconstruction error and uses the TV loss
+- this is not working too, there is artifact in the middle too
+
+Conclusion to this point: use the minus and only consider l1 and kld for anchor + positive (dont add the TV and SSIM)
+
+attemp11: try using the cosine distance for the triplet this time
+- the losses number are kinda high but the result is normal
+- unfortunately the scores are still not higher than the previous base losses of squeared euclidean distance with kld a p, and - l1
+
+attemp12: now we should try giving the positional additional features to the frontmost encoding layer
+- the outputs seem normal like the previous in att3
+- the dice and AUROC dont show any improvement (in the margin of 0.00x)
+
+attemp13: before the structure pyramid lets try simply skip and sum for last 3 layers (64, 128, 256)
+- as expected apple in apple out hahahahah
+- dice score so low it doesnt even get near to 0.01
+
+attemp14: try another skip only on the 3rd layer
+- as expected this also reduce the dice score, the more upper layer, the more severe
+- dice score goes to 0.44 directly with very good tsne plot
+
+attemp15: try to use the attemp12 enc with coordinate and decoder with new cross attention skip (with concat)
+
